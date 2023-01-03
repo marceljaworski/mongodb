@@ -1,14 +1,18 @@
 import { Low } from 'lowdb'
 import { JSONFile } from 'lowdb/node'
 
-//Für Erklärung schaue in albumController.js
+
+import mongodb from "../lib/mongodb.js";
+// import { ObjectId } from "mongodb.js";
+const collection = mongodb.collection("photos");
 
 const db = new Low(new JSONFile("data/db.json"))
 
-export const getAllPhotos = async (req, res) => {
-    await db.read()
 
-    res.json(db.data.photos)
+export const getAllPhotos = async (req, res) => {
+    const photos = await collection.find().toArray();
+    res.json(photos);
+
 }
 
 export const getPhoto = async (req, res) => {
@@ -58,6 +62,11 @@ export const deletePhoto = async (req, res) => {
 }
 
 export const savePhoto = async (req, res) => {
+     // Neue Einträge erstellen wir mit insertOne().
+    // Die Methode löst mit einem Objekt auf, das u.a. die neue ID enthält.
+    const result = await collection.insertOne({ ...req.body });
+    res.status(201).json(result);
+
     await db.read()
 
     const nextId = Math.max(...db.data.photos.map(a => a.id)) + 1
