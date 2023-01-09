@@ -1,12 +1,9 @@
-import { Low } from 'lowdb'
-import { JSONFile } from 'lowdb/node'
-
 
 import mongodb from "../lib/mongodb.js";
-// import { ObjectId } from "mongodb.js";
+import { ObjectId } from "mongodb";
 const collection = mongodb.collection("photos");
 
-const db = new Low(new JSONFile("data/db.json"))
+
 
 
 export const getAllPhotos = async (req, res) => {
@@ -16,8 +13,8 @@ export const getAllPhotos = async (req, res) => {
 }
 
 export const getPhoto = async (req, res) => {
-    await db.read()
-    const value = db.data.photos.find(a => a.id === +req.params.id)
+    
+    const value = await collection.findOne({ _id: ObjectId(req.params.id) })
 
     if(!value) {
         res.status(404).send("Not found")
@@ -26,54 +23,50 @@ export const getPhoto = async (req, res) => {
     res.json(value)
 }
 
-export const editPhoto = async (req, res) => {
-    await db.read()
+export const replacePhoto = async (req, res) => {
+    const id = req.params.id;
+    const document = { ...req.body };
+    const result = await collection.replaceOne(
+        { _id: ObjectId(id) },
+        document,
+        // {
+        //     // wollen wir einen Datensatz, den wir nicht gefunden haben, neu anlegen,
+        //     // können wir dies mit der Option upsert: true machen.
+        //     // upsert liefert uns als result eine Übersicht,
+        //     // ob ein Datensatz aktualisiert oder angelegt wurde.
+        //     upsert: true,
+        // },
+    );
 
-    const index = db.data.photos.findIndex(a => a.id === +req.params.id)
+    res.status(200).json(result);
+}
+export const updatePhoto = async (req, res) => {
+    const id = req.params.id;
+    const data = { ...req.body };
 
-    if(index < 0) {
-        res.status(404).send("Not found")
-        return
-    }
+    // Bei PATCH Requests wollen wir einen Datensatz nur modifizieren.
+    // Daher verwenden wir hier die Methode updateOne().
+    // Wie auch bei replaceOne() übergeben wir hier zuerst einen Filter.
+    // Danach folgt allerdings ein Objekt mit sog. "Field Update Operators".
+    // Geben wir $set den Wert unserer neuen Properties,
+    // Wird das Dokument um diese Properties erweitert oder - falls bereits vorhanden - geändert.
+    const result = await collection.updateOne(
+        { _id: ObjectId(id) },
+        {
+            $set: data,
+        },
+    );
 
-    db.data.photos[index] = { ...db.data.photos[index], ...req.body }
-
-    await db.write()
-
-    res.send(`${req.params.id} updated`);
+    res.status(200).json(result); // eigentlich 204, wegen result aber "nur" 200
 }
 
 export const deletePhoto = async (req, res) => {
-    await db.read()
-    const index = db.data.photos.findIndex(a => a.id === +req.params.id)
+    await collection.deleteOne({ _id: ObjectId(req.params.id)})
 
-    if(index < 0) {
-        res.status(404).send("Not found")
-        return
-    }
-
-    db.data.photos.splice(index, 1)
-
-    
-
-    db.write()
-
-    res.status(202).send(`${req.params.id} deleted`)
+    res.status(202).end()
 }
 
 export const savePhoto = async (req, res) => {
-     // Neue Einträge erstellen wir mit insertOne().
-    // Die Methode löst mit einem Objekt auf, das u.a. die neue ID enthält.
     const result = await collection.insertOne({ ...req.body });
     res.status(201).json(result);
-
-    await db.read()
-
-    const nextId = Math.max(...db.data.photos.map(a => a.id)) + 1
-    
-    db.data.photos.push({id: nextId, ...req.body})
-
-    db.write()
-
-    res.send(`${nextId}`)
 }

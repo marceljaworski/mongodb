@@ -8,7 +8,8 @@ const router = express.Router()
 router
     .get("/", controller.getAllPhotos)
     .get("/:id", controller.getPhoto)
-    .put("/:id", controller.editPhoto)
+    .put("/:id", controller.replacePhoto)
+    .patch("/:id", controller.updatePhoto)
     .delete("/:id", controller.deletePhoto)
     .post("/", controller.savePhoto)
 
